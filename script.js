@@ -1,86 +1,113 @@
-let history = [];
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
 
 const colorPicker = document.getElementById('colorPicker');
 const canvasColor = document.getElementById('canvasColor');
 const canvas = document.getElementById('myCanvas');
-const undoButton = document.getElementById('undoButton');
 const clearButton = document.getElementById('clearButton');
 const saveButton = document.getElementById('saveButton');
-const fontPicker = document.getElementById('fontPicker');
-const textInput = document.getElementById('textInput');
+const retrieveButton = document.getElementById('retrieveButton');
 const fontSizePicker = document.getElementById('fontSizePicker');
-
-
 const ctx = canvas.getContext('2d');
 
+ctx.lineWidth = 5;
+ctx.lineJoin = "round";
+ctx.lineCap = "round";
+
+// Set up color picker
 colorPicker.addEventListener('change', (event) => {
-    ctx.fillStyle = event.target.value;
     ctx.strokeStyle = event.target.value;
 });
 
+// Set up background color picker
 canvasColor.addEventListener('change', (event) => {
     ctx.fillStyle = event.target.value;
-    ctx.fillRect(0, 0, 800, 500);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 });
 
-canvas.addEventListener('mousedown', (event) => {
+// Resize canvas to fit screen
+function resizeCanvas() {
+    const tempCanvas = document.createElement("canvas");
+    const tempCtx = tempCanvas.getContext("2d");
+
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    tempCtx.drawImage(canvas, 0, 0);
+
+    canvas.width = window.innerWidth * 0.9; // Adjust width
+    canvas.height = window.innerHeight * 0.5; // Adjust height
+    ctx.drawImage(tempCanvas, 0, 0);
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+// Handle drawing events for both mouse and touch
+function startDrawing(x, y) {
     isDrawing = true;
-    lastX = event.offsetX;
-    lastY = event.offsetY;
-});
+    lastX = x;
+    lastY = y;
+}
 
-canvas.addEventListener('mousemove', (event) => {
-    if (isDrawing) {
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(event.offsetX, event.offsetY);
-        ctx.stroke();
+function draw(x, y) {
+    if (!isDrawing) return;
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    lastX = x;
+    lastY = y;
+}
 
-        lastX = event.offsetX;
-        lastY = event.offsetY;
-    }
-});
-
-canvas.addEventListener('contextmenu', (event) => {
-    event.preventDefault();
-});
-
-canvas.addEventListener('mouseup', () => {
+function stopDrawing() {
     isDrawing = false;
+}
+
+// Mouse Events
+canvas.addEventListener("mousedown", (e) => startDrawing(e.offsetX, e.offsetY));
+canvas.addEventListener("mousemove", (e) => draw(e.offsetX, e.offsetY));
+canvas.addEventListener("mouseup", stopDrawing);
+canvas.addEventListener("mouseleave", stopDrawing);
+
+
+canvas.addEventListener("touchstart", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    startDrawing(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
 });
 
+canvas.addEventListener("touchmove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    draw(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
+    e.preventDefault(); 
+});
+
+canvas.addEventListener("touchend", stopDrawing);
+
+// Font size picker
 fontSizePicker.addEventListener('change', (event) => {
     ctx.lineWidth = event.target.value;
-    // ctx.font = `${fontPicker.value} ${event.target.value}px`;
 });
 
+// Clear canvas
 clearButton.addEventListener('click', () => {
-    // Clear the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-})
+});
 
-// Add event listener for the save button
+// Save and download canvas
 saveButton.addEventListener('click', () => {
     localStorage.setItem('canvasContents', canvas.toDataURL());
-    // Create a new <a> element
     let link = document.createElement('a');
-
-    // Set the download attribute and the href attribute of the <a> element
-    link.download = 'my-canvas.png';
+    link.download = 'signature.png';
     link.href = canvas.toDataURL();
-
-    // Dispatch a click event on the <a> element
     link.click();
 });
 
-// Add event listener for the retrieve button
+// Retrieve saved signature
 retrieveButton.addEventListener('click', () => {
-    // Retrieve the saved canvas contents from local storage
     let savedCanvas = localStorage.getItem('canvasContents');
-
     if (savedCanvas) {
         let img = new Image();
         img.src = savedCanvas;
-        ctx.drawImage(img, 0, 0);
+        img.onload = () => ctx.drawImage(img, 0, 0);
     }
 });
